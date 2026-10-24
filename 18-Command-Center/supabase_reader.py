@@ -5,6 +5,8 @@ from uuid import UUID
 from urllib.parse import urlsplit, unquote, parse_qs
 import engine
 
+EXPECTED_ROLE = 'workforce_command_center_reader'
+
 # Global tables are explicitly approved via MWOS_GLOBAL_METADATA_VERIFIED.
 QUERIES = {
     'agents': 'SELECT id, display_name, department, role_name, reports_to, enabled FROM workforce.agents ORDER BY id LIMIT %s',
@@ -33,6 +35,7 @@ PREFLIGHT = """SELECT current_user AS role_name,
    AND c.relkind IN ('r','p','v','m','f')
    AND EXISTS (SELECT 1 FROM pg_roles r WHERE pg_has_role(current_user,r.oid,'MEMBER')
      AND (has_table_privilege(r.oid,c.oid,'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+          OR has_any_column_privilege(r.oid,c.oid,'INSERT,UPDATE,REFERENCES')
           OR c.relowner=r.oid))) AS writable,
  EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
    WHERE n.nspname NOT IN ('pg_catalog','information_schema')
@@ -41,7 +44,32 @@ PREFLIGHT = """SELECT current_user AS role_name,
      AND has_function_privilege(r.oid,p.oid,'EXECUTE'))) AS callable,
  EXISTS (SELECT 1 FROM pg_namespace n WHERE n.nspname NOT LIKE 'pg_%'
    AND EXISTS (SELECT 1 FROM pg_roles r WHERE pg_has_role(current_user,r.oid,'MEMBER')
-     AND has_schema_privilege(r.oid,n.oid,'CREATE'))) AS can_create"""
+     AND has_schema_privilege(r.oid,n.oid,'CREATE'))) AS can_create,
+ EXISTS (SELECT 1 FROM pg_roles r WHERE r.rolname <> current_user
+   AND pg_has_role(current_user,r.oid,'MEMBER')) AS membership,
+ EXISTS (SELECT 1 FROM pg_roles r WHERE r.rolname=current_user AND r.rolinherit) AS inherits,
+ EXISTS (SELECT 1 FROM pg_database d WHERE has_database_privilege(current_user,d.oid,'CREATE')) AS database_create,
+ EXISTS (SELECT 1 FROM pg_class c WHERE c.relkind='S'
+   AND has_sequence_privilege(current_user,c.oid,'USAGE,SELECT,UPDATE')) AS sequence_access,
+ EXISTS (SELECT 1 FROM pg_largeobject_metadata l
+   WHERE has_largeobject_privilege(current_user,l.oid,'SELECT,UPDATE')) AS largeobject_access,
+ EXISTS (SELECT 1 FROM (VALUES ('agents'),('runtime_controls'),('projects'),('tasks'),('approvals'),('events')) expected(tab)
+   LEFT JOIN pg_namespace n ON n.nspname='workforce'
+   LEFT JOIN pg_class c ON c.relnamespace=n.oid AND c.relname=expected.tab
+   WHERE c.oid IS NULL OR NOT c.relrowsecurity OR NOT row_security_active(c.oid)) AS rls_inactive,
+ EXISTS (SELECT 1 FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid
+   JOIN pg_namespace n ON n.oid=c.relnamespace
+   WHERE a.attnum>0 AND NOT a.attisdropped AND c.relkind IN ('r','p','v','m','f')
+   AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'
+   AND has_column_privilege(current_user,c.oid,a.attnum,'SELECT')
+   AND NOT (n.nspname='workforce' AND (
+     (c.relname='agents' AND a.attname=ANY(ARRAY['id','display_name','department','role_name','reports_to','enabled']))
+     OR (c.relname='runtime_controls' AND a.attname=ANY(ARRAY['singleton','paused','updated_at']))
+     OR (c.relname='projects' AND a.attname=ANY(ARRAY['id','workspace_id','name','status','lead_agent','updated_at']))
+     OR (c.relname='tasks' AND a.attname=ANY(ARRAY['id','workspace_id','project_id','title','assigned_agent','state','priority','updated_at']))
+     OR (c.relname='approvals' AND a.attname=ANY(ARRAY['id','workspace_id','project_id','task_id','action_type','payload_sha256','status','expires_at','decided_at','created_at']))
+     OR (c.relname='events' AND a.attname=ANY(ARRAY['id','workspace_id','project_id','task_id','event_type','created_at']))
+   ))) AS unexpected_select"""
 
 class SupabaseReader:
     def __init__(self, dsn='', workspaces=(), verified=False, global_verified=False, connector=None):
@@ -53,8 +81,7 @@ class SupabaseReader:
             uri = urlsplit(dsn)
             user = unquote(uri.username or '')
             self.safe_dsn = (uri.scheme in ('postgres','postgresql') and bool(uri.hostname)
-                             and bool(user) and user.split('.')[0] not in
-                             ('postgres','service_role','supabase_admin','anon','authenticated')
+                             and user.split('.')[0] == EXPECTED_ROLE
                              and not parse_qs(uri.query))
         except ValueError:
             self.safe_dsn = False
@@ -89,7 +116,7 @@ class SupabaseReader:
                 with conn.cursor() as cur:
                     cur.execute(PREFLIGHT)
                     permissions = cur.fetchone()
-                    if not permissions or any(permissions[k] for k in ('elevated','writable','callable','can_create')) or permissions['role_name'] in ('service_role','postgres','supabase_admin'):
+                    if not permissions or any(permissions[k] for k in ('elevated','writable','callable','can_create','membership','inherits','database_create','sequence_access','largeobject_access','rls_inactive','unexpected_select')) or permissions['role_name'] != EXPECTED_ROLE:
                         raise ValueError('Unsafe database identity')
                     data = {}
                     for name, sql in QUERIES.items():

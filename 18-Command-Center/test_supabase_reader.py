@@ -9,7 +9,7 @@ class ReaderTests(unittest.TestCase):
     def fixture(self, **flags):
         conn=MagicMock(); conn.__enter__.return_value=conn
         cur=conn.cursor.return_value.__enter__.return_value
-        cur.fetchone.return_value=dict(role_name='workforce_viewer',elevated=False,writable=False,callable=False,can_create=False,**{})
+        cur.fetchone.return_value=dict(role_name='workforce_command_center_reader',elevated=False,writable=False,callable=False,can_create=False,membership=False,inherits=False,database_create=False,sequence_access=False,largeobject_access=False,rls_inactive=False,unexpected_select=False)
         cur.fetchone.return_value.update(flags)
         agents=[dict(id=n.lower(),display_name=n,department=d,role_name='Role',reports_to=None,enabled=False) for n,d in engine.AGENTS.items()]
         def row(table, **values):
@@ -21,7 +21,7 @@ class ReaderTests(unittest.TestCase):
               [row('runtime',paused=False)]]
         cur.fetchmany.side_effect=rows
         connector=MagicMock(return_value=conn)
-        return SupabaseReader('postgresql://viewer:mock-password@invalid.test/postgres',(WS,),True,True,connector),connector,conn,cur,rows
+        return SupabaseReader('postgresql://workforce_command_center_reader:mock-password@invalid.test/postgres',(WS,),True,True,connector),connector,conn,cur,rows
 
     def test_unverified_never_connects(self):
         connector=MagicMock()
@@ -48,7 +48,7 @@ class ReaderTests(unittest.TestCase):
         self.assertIn('statement_timeout=3000',connect.call_args.kwargs['options'])
 
     def test_rejects_privileged_identities(self):
-        for flag in ('elevated','writable','callable','can_create'):
+        for flag in ('elevated','writable','callable','can_create','membership','inherits','database_create','sequence_access','largeobject_access','rls_inactive','unexpected_select'):
             reader,_,_,cur,_=self.fixture(**{flag:True})
             self.assertEqual(reader.snapshot()['connection'],'unavailable')
             self.assertEqual(cur.execute.call_count,1)
@@ -83,9 +83,22 @@ class ReaderTests(unittest.TestCase):
         for dsn in ('postgresql://service_role:x@host/postgres',
                     'postgresql://postgres.project:x@host/postgres',
                     'postgresql://viewer:x@host/postgres?user=service_role',
+                    'postgresql://workforce_n8n_reader:x@host/postgres',
+                    'postgresql://workforce_n8n_worker:x@host/postgres',
                     'eyJhbGciOiJIUzI1NiJ9.service-role-key'):
             self.assertEqual(SupabaseReader(dsn,(WS,),True,True,connect).snapshot()['connection'],'disconnected')
         connect.assert_not_called()
+
+    def test_wrong_authenticated_identity_rejected(self):
+        reader,_,_,cur,_=self.fixture()
+        cur.fetchone.return_value['role_name']='workforce_n8n_reader'
+        self.assertEqual(reader.snapshot()['connection'],'unavailable')
+        self.assertEqual(cur.execute.call_count,1)
+
+    def test_dedicated_pooler_username_is_accepted_without_connecting(self):
+        reader=SupabaseReader('postgresql://workforce_command_center_reader.projectref:placeholder@invalid.test/postgres',(WS,),False,False)
+        self.assertTrue(reader.safe_dsn)
+        self.assertFalse(reader.ready)
 
     def test_query_failure_returns_no_partial_data(self):
         reader,_,conn,cur,_=self.fixture()
