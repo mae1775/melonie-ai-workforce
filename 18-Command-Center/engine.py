@@ -13,8 +13,13 @@ AGENTS = {
 DENIED_DOMAINS={'job_hunting','job_application','recruitment','employment_search'}
 TRANSITIONS={'draft':{'queued','cancelled'},'queued':{'running','blocked','cancelled'},'running':{'review','blocked','failed'},'review':{'completed','blocked'},'blocked':{'queued','cancelled'},'failed':{'queued','cancelled'},'completed':set(),'cancelled':set()}
 
+class ClosingConnection(sqlite3.Connection):
+ def __exit__(self, *args):
+  try:return super().__exit__(*args)
+  finally:self.close()
+
 def connect(db):
- c=sqlite3.connect(str(db),timeout=10); c.row_factory=sqlite3.Row; c.execute('pragma foreign_keys=on');return c
+ c=sqlite3.connect(str(db),timeout=10,factory=ClosingConnection); c.row_factory=sqlite3.Row; c.execute('pragma foreign_keys=on');return c
 
 def init(db):
  with connect(db) as c:
