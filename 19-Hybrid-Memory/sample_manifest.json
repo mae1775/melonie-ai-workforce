@@ -1,0 +1,11 @@
+[
+  {
+    "workspace_id": "convertprime-demo",
+    "project_id": null,
+    "memory_type": "decision",
+    "content": "Use draft-only outreach until owner approves recipient and message.",
+    "source_uri": "manual://workforce-policy-example",
+    "classification": "internal",
+    "approval_status": "approved"
+  }
+]

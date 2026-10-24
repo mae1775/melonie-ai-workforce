@@ -1,0 +1,88 @@
+{
+  "name": "MWOS 01 - Task Envelope Preview (No Side Effects)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1",
+              "name": "schema_version",
+              "value": "1.0",
+              "type": "string"
+            },
+            {
+              "id": "b2",
+              "name": "task_title",
+              "value": "Prepare a sample website project plan",
+              "type": "string"
+            },
+            {
+              "id": "b3",
+              "name": "workspace_slug",
+              "value": "convertprime",
+              "type": "string"
+            },
+            {
+              "id": "b4",
+              "name": "project_status",
+              "value": "draft_only",
+              "type": "string"
+            },
+            {
+              "id": "b5",
+              "name": "assigned_agent",
+              "value": "lucas",
+              "type": "string"
+            },
+            {
+              "id": "b6",
+              "name": "approval_required",
+              "value": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "construct-task-envelope",
+      "name": "Construct Task Envelope",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        460,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Construct Task Envelope",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": []
+}

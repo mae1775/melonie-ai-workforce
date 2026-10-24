@@ -1,0 +1,76 @@
+{
+  "name": "MWOS 00 - Offline Smoke Test",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "mode",
+              "value": "dry_run",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "event_type",
+              "value": "workforce.smoke_test",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "agent_id",
+              "value": "lucas",
+              "type": "string"
+            },
+            {
+              "id": "a4",
+              "name": "external_actions_enabled",
+              "value": false,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "build-dry-run-event",
+      "name": "Build Dry Run Event",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        460,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Build Dry Run Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": []
+}

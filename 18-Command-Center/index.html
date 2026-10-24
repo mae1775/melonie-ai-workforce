@@ -1,0 +1,45 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Melonie AI Workforce | Offline Preview</title>
+<style>
+:root{font-family:Inter,system-ui,Arial;background:#f4f5ef;color:#243223}*{box-sizing:border-box}body{margin:0}
+header{background:#243223;color:#f4f5ef;padding:28px max(24px,calc((100vw - 1160px)/2));display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+header h1{font-family:Georgia,serif;font-weight:400;font-size:30px;margin:4px 0}.sub{font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:#c7cdb6}
+.pill{border:1px solid #a5aa85;border-radius:40px;padding:10px 16px;color:#e8d6ba;font-size:13px}
+main{max-width:1160px;margin:30px auto;padding:0 24px}.banner{background:#f4e5c9;border:1px solid #c9a875;padding:15px 20px;border-radius:10px;margin-bottom:24px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.card{background:white;border:1px solid #e2e6d8;border-radius:12px;padding:22px;box-shadow:0 4px 16px #2532240a}
+.card h2{font-size:14px;font-weight:600;margin:0 0 14px;color:#656a3b}.number{font-family:Georgia,serif;font-size:38px}
+.panels{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:20px}h3{font-family:Georgia,serif;font-size:22px;font-weight:400;margin:0 0 14px}
+input,select,button{font:inherit;padding:11px 12px;border-radius:7px;border:1px solid #ccd1c4;width:100%;margin-bottom:10px;background:white}
+button{background:#243223;color:white;border:0;cursor:pointer;font-weight:600}button:hover{background:#455840}
+.row{padding:12px 0;border-bottom:1px solid #e8e9e2}.row:last-child{border-bottom:0}.muted{color:#657060;font-size:13px}.badge{font-size:12px;background:#e7eadd;padding:4px 8px;border-radius:5px}
+.agentgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.agent{background:#f4f5ef;border-radius:8px;padding:12px;font-size:13px}.agent small{display:block;color:#64705c;margin-top:4px}
+@media(max-width:760px){.grid,.panels{grid-template-columns:1fr}.agentgrid{grid-template-columns:repeat(2,1fr)}}
+</style></head><body><header><div><div class="sub">Independent command center</div><h1>Melonie AI Workforce</h1><div class="muted" style="color:#cad4c1">25 agents · 6 departments · 1 owner</div></div><div class="pill">● OFFLINE PREVIEW · PAUSED</div></header>
+<main><div class="banner"><strong>Development preview only.</strong> Data is stored in a local SQLite file. No Supabase, n8n, DeepSeek, authentication, or autonomous execution is connected. Do not expose this server publicly.</div>
+<section class="grid"><div class="card"><h2>AGENTS</h2><div class="number" id="agentsCount">25</div><span class="muted">Configured identities</span></div><div class="card"><h2>PROJECTS</h2><div class="number" id="projectsCount">0</div><span class="muted">Local draft records</span></div><div class="card"><h2>TASKS</h2><div class="number" id="tasksCount">0</div><span class="muted">Draft only, not executed</span></div></section>
+<div class="panels"><section class="card"><h3>Create a project</h3><form id="projectForm"><input name="name" placeholder="Project name" required maxlength="120"><select name="business" required><option value="">Select business</option><option>ConvertPrime</option><option>Melonie Personal Brand</option><option>Digitally Systematic</option><option>Ara Socials</option><option>Other internal/client project</option></select><button>Create draft project</button></form><div id="projects"></div></section>
+<section class="card"><h3>Assign a draft task</h3><form id="taskForm"><select name="project_id" id="projectSelect" required></select><input name="title" placeholder="What needs to be done?" required maxlength="180"><select name="agent" id="agentSelect" required></select><button>Save draft assignment</button></form><div id="tasks"></div></section></div>
+<div class="panels"><section class="card"><h3>Client acquisition engine</h3><p class="muted">Creates six internal draft tasks for Shaine, Ethan, Maya and Troy. Does not contact prospects.</p><form id="acqForm"><select id="acqProject" name="project_id" required></select><button>Create acquisition plan</button></form></section><section class="card"><h3>Approval review</h3><p class="muted">Approvals are simulated and never execute external actions.</p><div id="approvals">No approval requests.</div></section></div>
+<section class="card" style="margin-top:20px"><h3>Workforce directory</h3><div class="agentgrid" id="directory"></div></section>
+<section class="card" style="margin-top:20px"><h3>Recent activity</h3><div id="events" class="muted">No activity yet.</div></section></main>
+<script>
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const api=async(path,body)=>{const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const j=await r.json();if(!r.ok)throw Error(j.error||'Request failed');return j};
+async function refresh(){const s=await (await fetch('/api/state')).json();
+ document.querySelector('#agentsCount').textContent=s.agents.length;document.querySelector('#projectsCount').textContent=s.projects.length;document.querySelector('#tasksCount').textContent=s.tasks.length;
+ document.querySelector('#projectSelect').innerHTML='<option value="">Select project</option>'+s.projects.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
+ document.querySelector('#acqProject').innerHTML='<option value="">Select project</option>'+s.projects.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
+ document.querySelector('#approvals').innerHTML=s.approvals.map(x=>`<div class="row"><strong>${esc(x.action)}</strong> <span class="badge">${esc(x.status)}</span><br><span class="muted">${esc(x.payload_sha256.slice(0,12))}...</span>${x.status==='pending'?`<div style="display:flex;gap:8px;margin-top:8px"><button onclick="decide('${esc(x.id)}','approved')">Approve (offline)</button><button onclick="decide('${esc(x.id)}','rejected')">Reject</button></div>`:''}</div>`).join('')||'<span class="muted">No approval requests</span>';
+ document.querySelector('#agentSelect').innerHTML=s.agents.map(x=>`<option>${esc(x.name)}</option>`).join('');
+ document.querySelector('#projects').innerHTML=s.projects.map(x=>`<div class="row"><strong>${esc(x.name)}</strong><br><span class="muted">${esc(x.business)} · ${esc(x.status)}</span></div>`).join('')||'<span class="muted">No projects yet</span>';
+ document.querySelector('#tasks').innerHTML=s.tasks.map(x=>`<div class="row"><strong>${esc(x.title)}</strong><br><span class="muted">${esc(x.agent)} · ${esc(x.status)}</span></div>`).join('')||'<span class="muted">No tasks yet</span>';
+ document.querySelector('#directory').innerHTML=s.agents.map(x=>`<div class="agent"><strong>${esc(x.name)}</strong><small>${esc(x.department)}</small></div>`).join('');
+ document.querySelector('#events').innerHTML=s.events.slice(0,10).map(x=>`<div class="row">${esc(x.action)} · ${esc(x.detail)}</div>`).join('')||'No activity yet';
+}
+for(const [id,path] of [['projectForm','/api/projects'],['taskForm','/api/tasks']]){
+ document.getElementById(id).addEventListener('submit',async e=>{e.preventDefault();const form=e.target;try{await api(path,Object.fromEntries(new FormData(form)));form.reset();await refresh()}catch(err){alert(err.message)}});
+}
+document.getElementById('acqForm').addEventListener('submit',async e=>{e.preventDefault();try{await api('/api/acquisition-plan',Object.fromEntries(new FormData(e.target)));await refresh()}catch(err){alert(err.message)}});
+async function decide(id,decision){try{await api('/api/approvals/decision',{approval_id:id,decision});await refresh()}catch(err){alert(err.message)}}
+refresh();
+</script></body></html>

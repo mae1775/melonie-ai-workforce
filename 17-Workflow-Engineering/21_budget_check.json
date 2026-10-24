@@ -1,0 +1,48 @@
+{
+  "name": "MWOS 21 - Budget Check (offline preview)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-21",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Offline contract preview only. No credentials or external effects.\nconst envelope = {schema_version:'1.0',workflow_code:'MWOS-21',step:\"Budget Check\",purpose:\"Preview projected spending\",dry_run:true,external_actions_enabled:false,requires_policy_gate:true,requires_project_scope:true,requires_durable_audit:true,status:'design_preview'};\nreturn [{json:envelope}];"
+      },
+      "id": "preview-21",
+      "name": "Preview Contract",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Preview Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": []
+}

@@ -1,0 +1,63 @@
+openapi: 3.0.3
+info:
+  title: Melonie AI Workforce Command Center
+  version: 0.1.0
+  description: Proposed trusted API contract; not a deployed service.
+servers:
+  - url: https://YOUR-COMMAND-CENTER-API
+security:
+  - bearerAuth: []
+paths:
+  /v1/projects:
+    get:
+      summary: List authorized projects
+      responses:
+        '200':
+          description: Projects visible to authenticated owner
+    post:
+      summary: Create draft project
+      responses:
+        '201':
+          description: Project created
+  /v1/tasks:
+    post:
+      summary: Create scoped task
+      responses:
+        '201':
+          description: Task queued
+  /v1/tasks/{task_id}:
+    get:
+      summary: Read authorized task
+      parameters:
+        - in: path
+          name: task_id
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200': {description: Task details}
+  /v1/approvals/{approval_id}/decision:
+    post:
+      summary: Approve or reject an exact action payload
+      parameters:
+        - in: path
+          name: approval_id
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200': {description: Decision recorded}
+  /v1/system/pause:
+    post:
+      summary: Emergency pause, owner only
+      responses:
+        '200': {description: Paused}
+  /v1/system/status:
+    get:
+      summary: Read health, spend, queue and pause status
+      responses:
+        '200': {description: Status}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
